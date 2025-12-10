@@ -60,7 +60,7 @@ public class ChessPiece {
     private void drawPieceText(Graphics2D g2d, int centerX, int centerY, int diameter, Color textColor) {
         g2d.setColor(textColor);
         
-        Font font = new Font("隶书", Font.BOLD, (int)(diameter * 0.5));
+        Font font = new Font("隶书", Font.BOLD, (int)(diameter * 0.7));
         g2d.setFont(font);
         
         FontMetrics fm = g2d.getFontMetrics();

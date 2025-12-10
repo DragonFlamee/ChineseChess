@@ -41,7 +41,6 @@ public class GamePanel extends JPanel {
         pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 6));
         pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 8));
         
-        // 初始化黑方棋子（棋盘上方，行0-3）
         // 第一行：车马象士将士象马车
         pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 0));
         pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 1));

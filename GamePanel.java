@@ -1,4 +1,6 @@
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
@@ -8,17 +10,27 @@ public class GamePanel extends JPanel {
     private final int boardX = 50;      // 棋盘左上角X坐标
     private final int boardY = 50;      // 棋盘左上角Y坐标
     private final int cellSize = 60;    // 交叉点之间的距离（像素）
+
+    private ChessPiece selectedPiece = null;
+    private int selectedX;
+    private int selectedY;
     
     public GamePanel() {
         setPreferredSize(new Dimension(650, 750));
         setBackground(new Color(240, 240, 220));
         initializeChessPieces();
+
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e){
+                handleMouseClick(e.getX(), e.getY());
+            }
+        });
     }
     
     private void initializeChessPieces() {
         pieces.clear();
         
-
         // 第一行：车马相仕帅仕相马车
         pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 0));
         pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 1));
@@ -63,15 +75,56 @@ public class GamePanel extends JPanel {
         pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 6));
         pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 8));
     }
+
+    private void handleMouseClick(int x, int y) {
+        int col = (x - boardX + cellSize / 2) / cellSize;
+        int row = (y - boardY + cellSize / 2) / cellSize;
+        
+        if (row < 0 || row > 9 || col < 0 || col > 8) {
+            selectedPiece = null; 
+            repaint();
+            return;
+        }
+        
+        ChessPiece clickedPiece = findPieceAt(row, col);
+        
+        if (selectedPiece == null) {
+            if (clickedPiece != null) {
+                selectedPiece = clickedPiece;
+                selectedX = x;
+                selectedY = y;
+            }
+        } else {
+            if (clickedPiece == null) {
+                selectedPiece.setPosition(row, col);
+                selectedPiece = null; 
+            } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
+                pieces.remove(clickedPiece); 
+                selectedPiece.setPosition(row, col);
+                selectedPiece = null; 
+            } else {
+                selectedPiece = clickedPiece;
+            }
+        }
+        
+        repaint();
+    }
+
+    private ChessPiece findPieceAt(int row, int col) {
+        for (ChessPiece piece : pieces) {
+            if (piece.getRow() == row && piece.getCol() == col) {
+                return piece;
+            }
+        }
+        return null;
+    }
     
     @Override
     public void paint(Graphics g) {
         super.paint(g);
         
-        // 绘制棋盘
         drawChessBoard(g);
         
-        // 绘制所有棋子
         drawAllPieces(g);
     }
     
@@ -137,7 +190,8 @@ public class GamePanel extends JPanel {
     
     private void drawAllPieces(Graphics g) {
         for (ChessPiece piece : pieces) {
-            piece.draw(g, boardX, boardY, cellSize);
+            boolean isSelected = (selectedPiece != null && piece == selectedPiece);
+            piece.draw(g, boardX, boardY, cellSize, isSelected); 
         }
     }
     

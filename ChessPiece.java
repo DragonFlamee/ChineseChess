@@ -30,13 +30,34 @@ public class ChessPiece {
         this.name = getChineseName(type, side);
     }
     
-    public void draw(Graphics g, int boardX, int boardY, int cellSize) {
-        int centerX = boardX + col * cellSize;
+    public void draw(Graphics g, int boardX, int boardY, int cellSize, boolean isSelected) {
+        int centerX = boardX + col * cellSize; // 之前已修正为交叉点坐标
         int centerY = boardY + row * cellSize;
         int diameter = (int)(cellSize * 0.75);
-        // int radius = diameter / 2;
+        drawAtCenter(g, centerX, centerY, diameter, isSelected); // 传递选中状态
+    }
+    
+    public void drawAtCenter(Graphics g, int centerX, int centerY, int diameter, boolean isSelected) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         
-        drawAtCenter(g, centerX, centerY, diameter);
+        int radius = diameter / 2;
+
+        g2d.setColor(WHITE_BG);
+        g2d.fillOval(centerX - radius, centerY - radius, diameter, diameter);
+        
+        Color borderColor = (side == Side.RED) ? RED_COLOR : BLACK_COLOR;
+        if (isSelected) {
+            borderColor = Color.BLUE;
+            g2d.setStroke(new BasicStroke(BORDER_WIDTH + 2));
+        } else {
+            g2d.setStroke(new BasicStroke(BORDER_WIDTH));
+        }
+        g2d.setColor(borderColor);
+        g2d.drawOval(centerX - radius, centerY - radius, diameter, diameter);
+        
+        drawPieceText(g2d, centerX, centerY, diameter, borderColor);
     }
     
     public void drawAtCenter(Graphics g, int centerX, int centerY, int diameter) {

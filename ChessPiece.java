@@ -1,6 +1,6 @@
 import java.awt.*;
 
-public class ChessPiece {
+public abstract  class ChessPiece {
     public enum PieceType {
         GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER
     }
@@ -14,7 +14,6 @@ public class ChessPiece {
     private int row;
     private int col;
     private final String name;
-    // private boolean isTraditional = true;
     
     private static final int DEFAULT_SIZE = 50;
     private static final int BORDER_WIDTH = 3;
@@ -124,6 +123,8 @@ public class ChessPiece {
         int dy = y - centerY;
         return dx * dx + dy * dy <= radius * radius;
     }
+
+    public abstract boolean moveLogic(int row,int cl);
     
     public PieceType getType() { return type; }
     public Side getSide() { return side; }

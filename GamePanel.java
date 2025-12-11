@@ -9,11 +9,13 @@ public class GamePanel extends JPanel {
     private final List<ChessPiece> pieces = new ArrayList<>();
     private final int boardX = 50;      // 棋盘左上角X坐标
     private final int boardY = 50;      // 棋盘左上角Y坐标
-    private final int cellSize = 60;    // 交叉点之间的距离（像素）
+    private final int cellSize = 60;    // 交叉点之间的距离
 
     private ChessPiece selectedPiece = null;
     private int selectedX;
     private int selectedY;
+    private ChessPiece.Side now_side = ChessPiece.Side.RED; //0代表红方
+    private boolean success = false;
     
     public GamePanel() {
         setPreferredSize(new Dimension(650, 750));
@@ -32,48 +34,48 @@ public class GamePanel extends JPanel {
         pieces.clear();
         
         // 第一行：车马相仕帅仕相马车
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 0));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 1));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 2));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.RED, 9, 3));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.GENERAL, ChessPiece.Side.RED, 9, 4));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.RED, 9, 5));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 6));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 7));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 8));
+        pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 0));
+        pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 1));
+        pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 2));
+        pieces.add(new Advisor(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.RED, 9, 3));
+        pieces.add(new General(ChessPiece.PieceType.GENERAL, ChessPiece.Side.RED, 9, 4));
+        pieces.add(new Advisor(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.RED, 9, 5));
+        pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 6));
+        pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 7));
+        pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 8));
         
         // 炮
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 1));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 7));
+        pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 1));
+        pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 7));
         
         // 兵
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 0));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 2));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 4));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 6));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 8));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 0));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 2));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 4));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 6));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 8));
         
         // 第一行：车马象士将士象马车
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 0));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 1));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 2));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.BLACK, 0, 3));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.GENERAL, ChessPiece.Side.BLACK, 0, 4));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.BLACK, 0, 5));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 6));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 7));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 8));
+        pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 0));
+        pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 1));
+        pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 2));
+        pieces.add(new Advisor(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.BLACK, 0, 3));
+        pieces.add(new General(ChessPiece.PieceType.GENERAL, ChessPiece.Side.BLACK, 0, 4));
+        pieces.add(new Advisor(ChessPiece.PieceType.ADVISOR, ChessPiece.Side.BLACK, 0, 5));
+        pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 6));
+        pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 7));
+        pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 8));
         
         // 炮
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 1));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 7));
+        pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 1));
+        pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 7));
         
         // 卒
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 0));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 2));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 4));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 6));
-        pieces.add(new ChessPiece(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 8));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 0));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 2));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 4));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 6));
+        pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 8));
     }
 
     private void handleMouseClick(int x, int y) {
@@ -90,14 +92,19 @@ public class GamePanel extends JPanel {
         
         if (selectedPiece == null) {
             if (clickedPiece != null) {
-                selectedPiece = clickedPiece;
-                selectedX = x;
-                selectedY = y;
+                if(clickedPiece.getSide() == now_side){
+                    selectedPiece = clickedPiece;
+                    selectedX = x;
+                    selectedY = y;
+                }else{
+                    System.out.println("现在是"+now_side+"方");
+                    return;
+                }
             }
         } else {
             if (clickedPiece == null) {
                 selectedPiece.setPosition(row, col);
-                selectedPiece = null; 
+                selectedPiece = null;
             } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
                 pieces.remove(clickedPiece); 
                 selectedPiece.setPosition(row, col);
@@ -105,6 +112,7 @@ public class GamePanel extends JPanel {
             } else {
                 selectedPiece = clickedPiece;
             }
+            now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK:ChessPiece.Side.RED;
         }
         
         repaint();

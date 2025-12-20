@@ -1,11 +1,10 @@
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
-import java.awt.Font;
-import java.awt.Color;
 
 public class GamePanel extends JPanel {
     private final List<ChessPiece> pieces = new ArrayList<>();
@@ -16,18 +15,107 @@ public class GamePanel extends JPanel {
     private ChessPiece selectedPiece = null;
     private int selectedX;
     private int selectedY;
-    private ChessPiece.Side now_side = ChessPiece.Side.RED; //0代表红方
-    
+    private ChessPiece.Side now_side = ChessPiece.Side.RED; 
+    private ChessClient client;
+    private ChessPiece.Side localSide; 
+    private boolean isNetworkGame = true; 
+    private boolean isMyTurn = false; 
+
     public GamePanel() {
         setPreferredSize(new Dimension(650, 750));
         setBackground(new Color(240, 240, 220));
         initializeChessPieces();
 
+        // 初始化网络客户端
+        client = new ChessClient(new ChessClient.OnMessageReceived() {
+            @Override
+            public void onMessage(String message) {
+                if (message.startsWith("WIN:")) {
+                    ChessPiece.Side winner = ChessPiece.Side.valueOf(message.split(":")[1]);
+                    handleRemoteWin(winner);
+                    return;
+                }
+                String[] parts = message.split(",");
+                if (parts.length == 4) {
+                    try {
+                        int fromRow = Integer.parseInt(parts[0]);
+                        int fromCol = Integer.parseInt(parts[1]);
+                        int toRow = Integer.parseInt(parts[2]);
+                        int toCol = Integer.parseInt(parts[3]);
+                        handleRemoteMove(fromRow, fromCol, toRow, toCol);
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            public void onSideAssigned(ChessPiece.Side side) {
+                // 收到阵营分配
+                localSide = side;
+                now_side = ChessPiece.Side.RED; // 红方先行
+                isMyTurn = (localSide == ChessPiece.Side.RED); // 红方先开始
+                SwingUtilities.invokeLater(() -> repaint());
+            }
+
+            @Override
+            public void onGameStart() {
+                JOptionPane.showMessageDialog(GamePanel.this, 
+                    "游戏开始！你是" + (localSide == ChessPiece.Side.RED ? "红方" : "黑方"));
+            }
+        });
+
+        try {
+            client.connect("localhost", 12345); // 本地测试用localhost，实际改为服务器IP
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "连接服务器失败：" + e.getMessage());
+            isNetworkGame = false; 
+        }
+
         addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(MouseEvent e){
+            public void mouseClicked(MouseEvent e) {
+                if (isNetworkGame && !isMyTurn) {
+                    JOptionPane.showMessageDialog(GamePanel.this, "等待对方走棋...");
+                    return;
+                }
                 handleMouseClick(e.getX(), e.getY());
             }
+        });
+    }
+
+    private void handleLocalMove(int fromRow, int fromCol, int toRow, int toCol) {
+        client.sendMove(fromRow, fromCol, toRow, toCol);
+        isMyTurn = false; // 发送后切换为对方回合
+    }
+
+    private void handleRemoteMove(int fromRow, int fromCol, int toRow, int toCol) {
+        SwingUtilities.invokeLater(() -> {
+            // 找到对应棋子并移动
+            ChessPiece piece = findPieceAt(fromRow, fromCol);
+            if (piece != null && piece.moveLogic(toRow, toCol, pieces)) {
+                ChessPiece targetPiece = findPieceAt(toRow, toCol);
+                if (targetPiece != null) {
+                    pieces.remove(targetPiece); // 吃子
+                }
+                piece.setPosition(toRow, toCol);
+                now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
+                isMyTurn = true; // 对方走完后切换为本地回合
+                repaint();
+            }
+        });
+    }
+
+    private void handleRemoteWin(ChessPiece.Side winner) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, 
+                winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
+                "游戏结束", 
+                JOptionPane.INFORMATION_MESSAGE);
+            initializeChessPieces(); // 重置棋盘
+            now_side = ChessPiece.Side.RED;
+            isMyTurn = (localSide == ChessPiece.Side.RED); // 重置回合
+            repaint();
         });
     }
     
@@ -89,6 +177,7 @@ public class GamePanel extends JPanel {
         }
         
         ChessPiece clickedPiece = findPieceAt(row, col);
+        boolean isMoveValid = false; 
         
         if (selectedPiece == null) {
             if (clickedPiece != null) {
@@ -103,7 +192,9 @@ public class GamePanel extends JPanel {
             }
         } else {
             if( selectedPiece.moveLogic(row, col,pieces)){
-                boolean isMoveValid = false; 
+                int fromRow = selectedPiece.getRow();
+                int fromCol = selectedPiece.getCol();
+                
                 if (clickedPiece == null) {
                     selectedPiece.setPosition(row, col);
                     selectedPiece = null;
@@ -116,6 +207,7 @@ public class GamePanel extends JPanel {
                 } else {
                     selectedPiece = clickedPiece;
                 }
+                
                 if (isMoveValid) {
                     ChessPiece.Side winner = checkWinner();
                     if (winner != null) {
@@ -124,12 +216,23 @@ public class GamePanel extends JPanel {
                             winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
                             "游戏结束", 
                             JOptionPane.INFORMATION_MESSAGE);
+                        
+                        // 新增：发送胜利消息给对方
+                        if (isNetworkGame) {
+                            client.sendMove(-1, -1, -1, -1); 
+                            client.sendWinMessage(winner); 
+                        }
+                        
                         initializeChessPieces();
                         now_side = ChessPiece.Side.RED; 
                         repaint();
                         return;
                     }
                     now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
+                    
+                    if (isNetworkGame) {
+                        handleLocalMove(fromRow, fromCol, row, col);
+                    }
                 }
             } else {
                 selectedPiece = null;

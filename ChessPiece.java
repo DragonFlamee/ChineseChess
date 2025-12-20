@@ -31,10 +31,10 @@ public abstract  class ChessPiece {
     }
     
     public void draw(Graphics g, int boardX, int boardY, int cellSize, boolean isSelected) {
-        int centerX = boardX + col * cellSize; // 之前已修正为交叉点坐标
+        int centerX = boardX + col * cellSize; 
         int centerY = boardY + row * cellSize;
         int diameter = (int)(cellSize * 0.75);
-        drawAtCenter(g, centerX, centerY, diameter, isSelected); // 传递选中状态
+        drawAtCenter(g, centerX, centerY, diameter, isSelected); 
     }
     
     public void drawAtCenter(Graphics g, int centerX, int centerY, int diameter, boolean isSelected) {

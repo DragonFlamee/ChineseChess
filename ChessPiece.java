@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.util.List;
 
 public abstract  class ChessPiece {
     public enum PieceType {
@@ -124,7 +125,7 @@ public abstract  class ChessPiece {
         return dx * dx + dy * dy <= radius * radius;
     }
 
-    public abstract boolean moveLogic(int row,int cl);
+    public abstract boolean moveLogic(int row,int cl,List<ChessPiece> allPieces);
     
     public PieceType getType() { return type; }
     public Side getSide() { return side; }

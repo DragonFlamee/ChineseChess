@@ -1,10 +1,12 @@
+import java.util.List;
+
 public class Cannon extends ChessPiece{
     public Cannon(PieceType type,Side side,int row,int col){
         super(type, side, row, col);
     }
 
     @Override
-    public boolean moveLogic(int row,int col){
+    public boolean moveLogic(int row,int col,List<ChessPiece> allPieces){
         return true;
     }
 }

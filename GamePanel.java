@@ -15,7 +15,6 @@ public class GamePanel extends JPanel {
     private int selectedX;
     private int selectedY;
     private ChessPiece.Side now_side = ChessPiece.Side.RED; //0代表红方
-    private boolean success = false;
     
     public GamePanel() {
         setPreferredSize(new Dimension(650, 750));
@@ -102,17 +101,21 @@ public class GamePanel extends JPanel {
                 }
             }
         } else {
-            if (clickedPiece == null) {
-                selectedPiece.setPosition(row, col);
+            if( selectedPiece.moveLogic(row, col,pieces)){
+                if (clickedPiece == null) {
+                    selectedPiece.setPosition(row, col);
+                    selectedPiece = null;
+                } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
+                    pieces.remove(clickedPiece); 
+                    selectedPiece.setPosition(row, col);
+                    selectedPiece = null; 
+                } else {
+                    selectedPiece = clickedPiece;
+                }
+                now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK:ChessPiece.Side.RED;
+            }else{
                 selectedPiece = null;
-            } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
-                pieces.remove(clickedPiece); 
-                selectedPiece.setPosition(row, col);
-                selectedPiece = null; 
-            } else {
-                selectedPiece = clickedPiece;
             }
-            now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK:ChessPiece.Side.RED;
         }
         
         repaint();

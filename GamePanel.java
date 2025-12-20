@@ -4,6 +4,8 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
+import java.awt.Font;
+import java.awt.Color;
 
 public class GamePanel extends JPanel {
     private final List<ChessPiece> pieces = new ArrayList<>();
@@ -76,7 +78,6 @@ public class GamePanel extends JPanel {
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 6));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 8));
     }
-
     private void handleMouseClick(int x, int y) {
         int col = (x - boardX + cellSize / 2) / cellSize;
         int row = (y - boardY + cellSize / 2) / cellSize;
@@ -102,18 +103,35 @@ public class GamePanel extends JPanel {
             }
         } else {
             if( selectedPiece.moveLogic(row, col,pieces)){
+                boolean isMoveValid = false; 
                 if (clickedPiece == null) {
                     selectedPiece.setPosition(row, col);
                     selectedPiece = null;
+                    isMoveValid = true;
                 } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
                     pieces.remove(clickedPiece); 
                     selectedPiece.setPosition(row, col);
                     selectedPiece = null; 
+                    isMoveValid = true;
                 } else {
                     selectedPiece = clickedPiece;
                 }
-                now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK:ChessPiece.Side.RED;
-            }else{
+                if (isMoveValid) {
+                    ChessPiece.Side winner = checkWinner();
+                    if (winner != null) {
+                        repaint();
+                        JOptionPane.showMessageDialog(this, 
+                            winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
+                            "游戏结束", 
+                            JOptionPane.INFORMATION_MESSAGE);
+                        initializeChessPieces();
+                        now_side = ChessPiece.Side.RED; 
+                        repaint();
+                        return;
+                    }
+                    now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
+                }
+            } else {
                 selectedPiece = null;
             }
         }
@@ -135,8 +153,27 @@ public class GamePanel extends JPanel {
         super.paint(g);
         
         drawChessBoard(g);
-        
         drawAllPieces(g);
+        
+        drawCurrentTurn(g);
+    }
+    
+    private void drawCurrentTurn(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        String turnText = now_side == ChessPiece.Side.RED ? "当前回合：红方" : "当前回合：黑方";
+        Font font = new Font("隶书", Font.BOLD, 24); 
+        g2d.setFont(font);
+        
+        Color textColor = now_side == ChessPiece.Side.RED ? 
+            ChessPiece.RED_COLOR : ChessPiece.BLACK_COLOR;
+        g2d.setColor(textColor);
+
+        int textX = getWidth() - g2d.getFontMetrics().stringWidth(turnText) - 20;
+        int textY = 40; 
+        
+        g2d.drawString(turnText, textX, textY);
     }
     
     private void drawChessBoard(Graphics g) {
@@ -205,5 +242,26 @@ public class GamePanel extends JPanel {
             piece.draw(g, boardX, boardY, cellSize, isSelected); 
         }
     }
-    
+
+    private ChessPiece.Side checkWinner() {
+        boolean redGeneralExists = false;
+        boolean blackGeneralExists = false;
+        for (ChessPiece piece : pieces) {
+            if (piece.getType() == ChessPiece.PieceType.GENERAL) {
+                if (piece.getSide() == ChessPiece.Side.RED) {
+                    redGeneralExists = true;
+                } else {
+                    blackGeneralExists = true;
+                }
+            }
+        }
+        if (!redGeneralExists) {
+            return ChessPiece.Side.BLACK;
+        } else if (!blackGeneralExists) {
+            return ChessPiece.Side.RED;
+        } else {
+            return null; 
+        }
+    }
+
 }

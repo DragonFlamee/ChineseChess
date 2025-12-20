@@ -19,8 +19,8 @@ public abstract  class ChessPiece {
     private static final int DEFAULT_SIZE = 50;
     private static final int BORDER_WIDTH = 3;
     private static final Color WHITE_BG = new Color(255, 255, 255, 250);
-    private static final Color RED_COLOR = new Color(220, 50, 50);
-    private static final Color BLACK_COLOR = new Color(30, 30, 30);
+    public  static final Color RED_COLOR = new Color(220, 50, 50);
+    public  static final Color BLACK_COLOR = new Color(30, 30, 30);
     
     public ChessPiece(PieceType type, Side side, int row, int col) {
         this.type = type;

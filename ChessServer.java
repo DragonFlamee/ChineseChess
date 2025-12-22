@@ -6,6 +6,10 @@ public class ChessServer {
     private ServerSocket serverSocket;
     private final List<Socket> clients = new ArrayList<>();
     private final ChessPiece.Side[] clientSides = new ChessPiece.Side[2];
+    
+    public static void main(String[] args) throws IOException {
+        new ChessServer().start(12345); // 监听12345端口
+    }
 
     public void start(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -62,9 +66,5 @@ public class ChessServer {
                 System.err.println("客户端断开连接：" + e.getMessage());
             }
         }
-    }
-
-    public static void main(String[] args) throws IOException {
-        new ChessServer().start(12345); // 监听12345端口
     }
 }

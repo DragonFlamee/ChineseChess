@@ -1,10 +1,13 @@
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
 
 public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     private final List<ChessPiece> pieces = new ArrayList<>();
@@ -13,51 +16,44 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     private final int cellSize = 60;    // 交叉点之间的距离
 
     private ChessPiece selectedPiece = null;
-    private int selectedX;
-    private int selectedY;
-    private ChessPiece.Side now_side = ChessPiece.Side.RED; 
+    private ChessPiece.Side nowSide = ChessPiece.Side.RED; 
     private ChessClient client;
     private ChessPiece.Side localSide; 
     private boolean isNetworkGame = true; 
     private boolean isMyTurn = false; 
+    private boolean isGameStarted = false; 
 
-    private JTextArea chatArea;
     private JTextField chatInput;
     private JButton sendButton;
+    private JPanel chatContentPanel; 
+    private JScrollPane chatScrollPanel; 
+    private final GridBagConstraints chatGbc = new GridBagConstraints(); // 聊天布局约束
 
     public GamePanel() {
-        // 1. 先初始化布局（修正顺序）
         setLayout(new BorderLayout());
         setBackground(new Color(240, 240, 220));
         
-        // 2. 初始化棋盘面板（补全绘制逻辑）
         JPanel gameBoardPanel = createGameBoardPanel();
         add(gameBoardPanel, BorderLayout.CENTER);
         
-        // 3. 初始化聊天组件
         initChatComponents();
-        
-        // 4. 初始化棋子
         initializeChessPieces();
 
-        // 5. 初始化网络客户端（关键：直接传this作为回调，移除匿名类）
         client = new ChessClient(this);
-
         try {
-            client.connect("localhost", 12345); // 本地测试用localhost，实际改为服务器IP
+            client.connect("localhost", 12345);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "连接服务器失败：" + e.getMessage());
-            isNetworkGame = false; 
+            isNetworkGame = false;
+            isMyTurn = true; // 单机模式直接可以走棋
         }
     }
 
-    // 创建棋盘面板（补全绘制逻辑）
     private JPanel createGameBoardPanel() {
         JPanel gameBoardPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                // 补全棋盘绘制逻辑
                 drawChessBoard(g);
                 drawAllPieces(g);
                 drawCurrentTurn(g);
@@ -71,12 +67,12 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
 
         gameBoardPanel.setBackground(new Color(240, 240, 220));
         
-        // 添加鼠标监听器
         gameBoardPanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (isNetworkGame && !isMyTurn) {
-                    JOptionPane.showMessageDialog(GamePanel.this, "等待对方走棋...");
+                if (isNetworkGame && (!isGameStarted || !isMyTurn)) {
+                    String msg = isGameStarted ? "等待对方走棋..." : "等待另一位玩家加入...";
+                    JOptionPane.showMessageDialog(GamePanel.this, msg);
                     return;
                 }
                 handleMouseClick(e.getX(), e.getY());
@@ -87,26 +83,110 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
 
     private void initChatComponents() {
         JPanel chatPanel = new JPanel(new BorderLayout());
-        chatPanel.setPreferredSize(new Dimension(200, 0)); 
+        chatPanel.setPreferredSize(new Dimension(280, 0));
+        chatPanel.setBackground(Color.WHITE);
+        chatPanel.setBorder(BorderFactory.createLineBorder(new Color(0xE5E5E5), 1));
+
+        GridBagConstraints chatGbc = new GridBagConstraints();
         
-        chatArea = new JTextArea();
-        chatArea.setEditable(false);
-        chatArea.setLineWrap(true);
-        JScrollPane scrollPane = new JScrollPane(chatArea);
-        chatPanel.add(scrollPane, BorderLayout.CENTER);
-        
-        JPanel inputPanel = new JPanel(new BorderLayout());
+        chatContentPanel = new JPanel(new GridBagLayout());
+        chatGbc.insets = new Insets(4, 0, 4, 0); 
+        chatGbc.fill = GridBagConstraints.HORIZONTAL; 
+        chatGbc.anchor = GridBagConstraints.NORTHWEST; 
+        chatGbc.weightx = 1.0; 
+        chatGbc.gridx = 0; 
+        chatGbc.gridy = 0; 
+        chatContentPanel.setBackground(new Color(0xF0F0F0));
+        chatContentPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        chatScrollPanel = new JScrollPane(chatContentPanel);
+        chatScrollPanel.setBorder(null);
+        chatScrollPanel.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        chatScrollPanel.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        chatScrollPanel.getViewport().setBackground(new Color(0xF0F0F0)); 
+        chatPanel.add(chatScrollPanel, BorderLayout.CENTER);
+
+        JPanel inputPanel = new JPanel(new BorderLayout(8, 0));
+        inputPanel.setBackground(Color.WHITE);
+        inputPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
         chatInput = new JTextField();
-        sendButton = new JButton("发送");
+        chatInput.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xE5E5E5), 1),
+                new EmptyBorder(8, 10, 8, 10)
+        ));
+        chatInput.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+
+        // 发送按钮
+        sendButton = new JButton("发送") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+
+            @Override
+            public void setBorder(Border border) {
+                super.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+            }
+        };
+        sendButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        sendButton.setBackground(new Color(0x07C160));
+        sendButton.setForeground(Color.WHITE);
+        sendButton.setFocusPainted(false);
+        sendButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
         
-        sendButton.addActionListener(e -> sendChatMessage());
-        chatInput.addActionListener(e -> sendChatMessage());
-        
+        sendButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                sendButton.setBackground(new Color(0x06B158));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                sendButton.setBackground(new Color(0x07C160));
+            }
+        });
+
         inputPanel.add(chatInput, BorderLayout.CENTER);
         inputPanel.add(sendButton, BorderLayout.EAST);
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
-        
+
+        // 将聊天面板添加到主面板
         add(chatPanel, BorderLayout.EAST);
+
+        // 绑定发送事件
+        sendButton.addActionListener(e -> sendChatMessage());
+        chatInput.addActionListener(e -> sendChatMessage());
+    }
+    private JLabel createMessageBubble(String text, boolean isSelf) {
+        JLabel bubbleLabel = new JLabel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
+                Color bgColor = isSelf ? new Color(0xD9FDD3) : new Color(0xECECEC);
+                g2.setColor(bgColor);
+                // 修正气泡绘制区域
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 5, getHeight() - 5, 15, 15));
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+
+        bubbleLabel.setText("<html><body style='width:180px; word-wrap:break-word;'>" + text + "</body></html>");
+        bubbleLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        bubbleLabel.setBorder(new EmptyBorder(8, 12, 8, 12));
+        bubbleLabel.setOpaque(false);
+        bubbleLabel.setMaximumSize(new Dimension(180, Integer.MAX_VALUE));
+        return bubbleLabel;
     }
 
     private void sendChatMessage() {
@@ -114,51 +194,82 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         if (!message.isEmpty() && client != null) {
             client.sendChatMessage(message);
             chatInput.setText("");
-            // 显示自己发送的消息
-            chatArea.append("我: " + message + "\n");
-            chatArea.setCaretPosition(chatArea.getDocument().getLength());
+
+            JLabel selfBubble = createMessageBubble(message, true);
+            JPanel messageRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            messageRow.setBackground(new Color(0xF0F0F0));
+            messageRow.add(selfBubble);
+            
+            addChatComponent(messageRow);
         }
     }
 
+    // 添加聊天组件并更新布局
+    private void addChatComponent(JPanel component) {
+        chatContentPanel.add(component, chatGbc);
+        chatGbc.gridy++; // 下一行
+        chatContentPanel.revalidate();
+        chatContentPanel.repaint();
+        
+        // 自动滚动到底部
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar verticalBar = chatScrollPanel.getVerticalScrollBar();
+            verticalBar.setValue(verticalBar.getMaximum());
+        });
+    }
+
     private void handleLocalMove(int fromRow, int fromCol, int toRow, int toCol) {
-        client.sendMove(fromRow, fromCol, toRow, toCol);
-        isMyTurn = false; // 发送后切换为对方回合
+        if (client != null) {
+            client.sendMove(fromRow, fromCol, toRow, toCol);
+        }
+        isMyTurn = false;
+        repaint();
     }
 
     private void handleRemoteMove(int fromRow, int fromCol, int toRow, int toCol) {
         SwingUtilities.invokeLater(() -> {
-            // 找到对应棋子并移动
             ChessPiece piece = findPieceAt(fromRow, fromCol);
             if (piece != null && piece.moveLogic(toRow, toCol, pieces)) {
+                // 移除目标位置棋子
                 ChessPiece targetPiece = findPieceAt(toRow, toCol);
                 if (targetPiece != null) {
-                    pieces.remove(targetPiece); // 吃子
+                    pieces.remove(targetPiece);
                 }
                 piece.setPosition(toRow, toCol);
-                now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
-                isMyTurn = true; // 对方走完后切换为本地回合
+                nowSide = (nowSide == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
+                isMyTurn = true;
                 repaint();
+                
+                // 检查远程移动是否导致胜利
+                ChessPiece.Side winner = checkWinner();
+                if (winner != null) {
+                    handleGameOver(winner);
+                }
             }
         });
     }
 
     private void handleRemoteWin(ChessPiece.Side winner) {
         SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(this, 
-                winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
-                "游戏结束", 
-                JOptionPane.INFORMATION_MESSAGE);
-            initializeChessPieces(); // 重置棋盘
-            now_side = ChessPiece.Side.RED;
-            isMyTurn = (localSide == ChessPiece.Side.RED); // 重置回合
-            repaint();
+            handleGameOver(winner);
         });
+    }
+
+    private void handleGameOver(ChessPiece.Side winner) {
+        JOptionPane.showMessageDialog(this, 
+            winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
+            "游戏结束", 
+            JOptionPane.INFORMATION_MESSAGE);
+        initializeChessPieces();
+        nowSide = ChessPiece.Side.RED;
+        isMyTurn = (localSide == null) ? true : (localSide == ChessPiece.Side.RED);
+        repaint();
     }
     
     private void initializeChessPieces() {
         pieces.clear();
         
-        // 第一行：车马相仕帅仕相马车
+        // 红方棋子
         pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 0));
         pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 1));
         pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 2));
@@ -168,19 +279,15 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.RED, 9, 6));
         pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.RED, 9, 7));
         pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.RED, 9, 8));
-        
-        // 炮
         pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 1));
         pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.RED, 7, 7));
-        
-        // 兵
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 0));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 2));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 4));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 6));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.RED, 6, 8));
         
-        // 第一行：车马象士将士象马车
+        // 黑方棋子
         pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 0));
         pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 1));
         pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 2));
@@ -190,12 +297,8 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         pieces.add(new Elephant(ChessPiece.PieceType.ELEPHANT, ChessPiece.Side.BLACK, 0, 6));
         pieces.add(new Horse(ChessPiece.PieceType.HORSE, ChessPiece.Side.BLACK, 0, 7));
         pieces.add(new Chariot(ChessPiece.PieceType.CHARIOT, ChessPiece.Side.BLACK, 0, 8));
-        
-        // 炮
         pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 1));
         pieces.add(new Cannon(ChessPiece.PieceType.CANNON, ChessPiece.Side.BLACK, 2, 7));
-        
-        // 卒
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 0));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 2));
         pieces.add(new Soldier(ChessPiece.PieceType.SOLDIER, ChessPiece.Side.BLACK, 3, 4));
@@ -208,68 +311,49 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         int row = (y - boardY + cellSize / 2) / cellSize;
         
         if (row < 0 || row > 9 || col < 0 || col > 8) {
-            selectedPiece = null; 
+            selectedPiece = null;
             repaint();
             return;
         }
         
         ChessPiece clickedPiece = findPieceAt(row, col);
-        boolean isMoveValid = false; 
         
         if (selectedPiece == null) {
-            if (clickedPiece != null) {
-                if(clickedPiece.getSide() == now_side){
-                    selectedPiece = clickedPiece;
-                    selectedX = x;
-                    selectedY = y;
-                }else{
-                    System.out.println("现在是"+now_side+"方");
-                    return;
-                }
+            // 选中当前回合的棋子
+            if (clickedPiece != null && clickedPiece.getSide() == nowSide) {
+                selectedPiece = clickedPiece;
             }
         } else {
-            if( selectedPiece.moveLogic(row, col,pieces)){
+            if (selectedPiece.moveLogic(row, col, pieces)) {
                 int fromRow = selectedPiece.getRow();
                 int fromCol = selectedPiece.getCol();
+                boolean isCapture = clickedPiece != null;
                 
-                if (clickedPiece == null) {
-                    selectedPiece.setPosition(row, col);
-                    selectedPiece = null;
-                    isMoveValid = true;
-                } else if (clickedPiece.getSide() != selectedPiece.getSide()) {
-                    pieces.remove(clickedPiece); 
-                    selectedPiece.setPosition(row, col);
-                    selectedPiece = null; 
-                    isMoveValid = true;
-                } else {
-                    selectedPiece = clickedPiece;
-                }
-                
-                if (isMoveValid) {
-                    ChessPiece.Side winner = checkWinner();
-                    if (winner != null) {
-                        repaint();
-                        JOptionPane.showMessageDialog(this, 
-                            winner == ChessPiece.Side.RED ? "红方胜利！" : "黑方胜利！",
-                            "游戏结束", 
-                            JOptionPane.INFORMATION_MESSAGE);
-                        
-                        // 新增：发送胜利消息给对方
-                        if (isNetworkGame) {
-                            client.sendMove(-1, -1, -1, -1); 
-                            client.sendWinMessage(winner); 
-                        }
-                        
-                        initializeChessPieces();
-                        now_side = ChessPiece.Side.RED; 
+                if (isCapture) {
+                    if (clickedPiece.getSide() == selectedPiece.getSide()) {
+                        selectedPiece = clickedPiece;
                         repaint();
                         return;
+                    } else {
+                        pieces.remove(clickedPiece); // 移除被吃的棋子
                     }
-                    now_side = (now_side == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
-                    
+                }
+                
+                // 执行移动
+                selectedPiece.setPosition(row, col);
+                selectedPiece = null;
+                nowSide = (nowSide == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
+                ChessPiece.Side winner = checkWinner();
+                if (winner != null) {
                     if (isNetworkGame) {
-                        handleLocalMove(fromRow, fromCol, row, col);
+                        client.sendWinMessage(winner);
                     }
+                    handleGameOver(winner);
+                    return;
+                }
+                
+                if (isNetworkGame) {
+                    handleLocalMove(fromRow, fromCol, row, col);
                 }
             } else {
                 selectedPiece = null;
@@ -290,13 +374,13 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     
     private void drawCurrentTurn(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        String turnText = now_side == ChessPiece.Side.RED ? "当前回合：红方" : "当前回合：黑方";
+        String turnText = nowSide == ChessPiece.Side.RED ? "当前回合：红方" : "当前回合：黑方";
         Font font = new Font("隶书", Font.BOLD, 24); 
         g2d.setFont(font);
         
-        Color textColor = now_side == ChessPiece.Side.RED ? 
+        Color textColor = nowSide == ChessPiece.Side.RED ? 
             ChessPiece.RED_COLOR : ChessPiece.BLACK_COLOR;
         g2d.setColor(textColor);
 
@@ -306,7 +390,6 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         int textX = boardX + (boardTotalWidth - textWidth) / 2;
         int textY = boardY + (9 * cellSize) + 50; 
         
-        // 绘制文字
         g2d.drawString(turnText, textX, textY);
     }
     
@@ -314,8 +397,8 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        int boardWidth = 8 * cellSize;  // 8个格子，9个交叉点
-        int boardHeight = 9 * cellSize; // 9个格子，10个交叉点
+        int boardWidth = 8 * cellSize;
+        int boardHeight = 9 * cellSize;
         
         // 绘制棋盘背景
         g2d.setColor(new Color(222, 184, 135));
@@ -326,18 +409,16 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         g2d.setStroke(new BasicStroke(2));
         g2d.drawRect(boardX, boardY, boardWidth, boardHeight);
         
-        // 绘制网格线
+        // 绘制横线和竖线
         g2d.setStroke(new BasicStroke(1));
-        
-        // 绘制横线（10条）
         for (int i = 0; i <= 9; i++) {
             int y = boardY + i * cellSize;
             g2d.drawLine(boardX, y, boardX + boardWidth, y);
         }
         
-        // 绘制竖线（9条）
         for (int i = 0; i <= 8; i++) {
             int x = boardX + i * cellSize;
+            // 楚河汉界分隔
             g2d.drawLine(x, boardY, x, boardY + 4 * cellSize);
             g2d.drawLine(x, boardY + 5 * cellSize, x, boardY + boardHeight);
         }
@@ -348,13 +429,13 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         String river = "楚    河    漢    界";
         FontMetrics fm = g2d.getFontMetrics();
         int riverWidth = fm.stringWidth(river);
-        int centerY = boardY + 4 * cellSize + cellSize / 2; 
-        int baseline = centerY + fm.getAscent() / 2; 
+        int centerY = boardY + 4 * cellSize + cellSize / 2;
+        int baseline = centerY + (fm.getAscent() - fm.getDescent()) / 2;
         g2d.drawString(river, boardX + (boardWidth - riverWidth) / 2, baseline);
         
-        // 绘制九宫斜线
-        drawNinePalaces(g2d, 0); 
-        drawNinePalaces(g2d, 7);  
+        // 绘制九宫格
+        drawNinePalaces(g2d, 0);  // 黑方九宫
+        drawNinePalaces(g2d, 7);  // 红方九宫
     }
     
     private void drawNinePalaces(Graphics2D g2d, int startY) {
@@ -373,13 +454,14 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     private void drawAllPieces(Graphics g) {
         for (ChessPiece piece : pieces) {
             boolean isSelected = (selectedPiece != null && piece == selectedPiece);
-            piece.draw(g, boardX, boardY, cellSize, isSelected); 
+            piece.draw(g, boardX, boardY, cellSize, isSelected);
         }
     }
 
     private ChessPiece.Side checkWinner() {
         boolean redGeneralExists = false;
         boolean blackGeneralExists = false;
+        
         for (ChessPiece piece : pieces) {
             if (piece.getType() == ChessPiece.PieceType.GENERAL) {
                 if (piece.getSide() == ChessPiece.Side.RED) {
@@ -389,23 +471,21 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
                 }
             }
         }
-        if (!redGeneralExists) {
-            return ChessPiece.Side.BLACK;
-        } else if (!blackGeneralExists) {
-            return ChessPiece.Side.RED;
-        } else {
-            return null; 
-        }
+        
+        if (!redGeneralExists) return ChessPiece.Side.BLACK;
+        if (!blackGeneralExists) return ChessPiece.Side.RED;
+        return null;
     }
 
     @Override
     public void onMessage(String message) {
         if (message.startsWith("WIN:")) {
-            ChessPiece.Side winner = ChessPiece.Side.valueOf(message.split(":")[1]);
+            String winnerStr = message.split(":", 2)[1];
+            ChessPiece.Side winner = ChessPiece.Side.valueOf(winnerStr);
             handleRemoteWin(winner);
             return;
         }
-        // 处理聊天消息
+        
         if (message.startsWith("CHAT:")) {
             String[] parts = message.split(":", 3);
             if (parts.length == 3) {
@@ -413,6 +493,8 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
             }
             return;
         }
+        
+        // 处理移动消息
         String[] parts = message.split(",");
         if (parts.length == 4) {
             try {
@@ -430,22 +512,35 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     @Override
     public void onSideAssigned(ChessPiece.Side side) {
         localSide = side;
-        now_side = ChessPiece.Side.RED; 
-        isMyTurn = (localSide == ChessPiece.Side.RED);
-        SwingUtilities.invokeLater(() -> repaint());
+        nowSide = ChessPiece.Side.RED;
+        isMyTurn = false;
+        SwingUtilities.invokeLater(this::repaint);
     }
 
     @Override
     public void onGameStart() {
-        JOptionPane.showMessageDialog(this, 
-            "游戏开始！你是" + (localSide == ChessPiece.Side.RED ? "红方" : "黑方"));
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, 
+                "游戏开始！你是" + (localSide == ChessPiece.Side.RED ? "红方" : "黑方"));
+            isGameStarted = true; 
+            isMyTurn = true;
+        });
     }
 
     @Override
     public void onChatMessage(String sender, String message) {
         SwingUtilities.invokeLater(() -> {
-            chatArea.append(sender + ": " + message + "\n");
-            chatArea.setCaretPosition(chatArea.getDocument().getLength());
+            JLabel otherBubble = createMessageBubble(message, false);
+            JPanel messageRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            messageRow.setBackground(new Color(0xF0F0F0));
+            
+            JLabel senderLabel = new JLabel(sender + "：");
+            senderLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+            senderLabel.setForeground(Color.GRAY);
+            messageRow.add(senderLabel);
+            messageRow.add(otherBubble);
+            
+            addChatComponent(messageRow);
         });
     }
 }

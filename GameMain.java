@@ -6,7 +6,7 @@ public class GameMain {
 
         JFrame frame = new JFrame();
 
-        frame.setSize(800,700);
+        frame.setSize(1000,700);
         //居中
         frame.setLocationRelativeTo(null);
 

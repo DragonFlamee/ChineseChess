@@ -61,4 +61,9 @@ public class ChessClient {
             out.println("CHAT:" + message); // 按约定格式发送聊天消息
         }
     }
+
+    public void setSideReceivedListener(Object object) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setSideReceivedListener'");
+    }
 }

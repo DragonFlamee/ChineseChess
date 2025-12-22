@@ -48,10 +48,15 @@ public class ChessServer {
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
                     System.out.println("收到" + clientSides[clientIndex] + "消息：" + inputLine);
-                    // 转发给另一个客户端
+                    
                     Socket otherClient = clients.get(1 - clientIndex);
                     PrintWriter out = new PrintWriter(otherClient.getOutputStream(), true);
-                    out.println(inputLine);
+                    
+                    if (inputLine.startsWith("CHAT:")) {
+                        out.println("CHAT:" + clientSides[clientIndex] + ":" + inputLine.substring(5));
+                    } else {
+                        out.println(inputLine);
+                    }
                 }
             } catch (IOException e) {
                 System.err.println("客户端断开连接：" + e.getMessage());

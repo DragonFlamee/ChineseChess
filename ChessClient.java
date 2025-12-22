@@ -12,6 +12,7 @@ public class ChessClient {
         void onMessage(String message);
         void onSideAssigned(ChessPiece.Side side);
         void onGameStart();
+        void onChatMessage(String sender, String message);
     }
 
     public ChessClient(OnMessageReceived listener) {
@@ -50,7 +51,14 @@ public class ChessClient {
     public void close() throws IOException {
         socket.close();
     }
+    
     public void sendWinMessage(ChessPiece.Side winner) {
-    out.println("WIN:" + winner); 
-}
+        out.println("WIN:" + winner); 
+    }
+    
+    public void sendChatMessage(String message) {
+        if (out != null && message != null) {
+            out.println("CHAT:" + message); // 按约定格式发送聊天消息
+        }
+    }
 }

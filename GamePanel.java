@@ -29,6 +29,8 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     private JScrollPane chatScrollPanel; 
     private final GridBagConstraints chatGbc = new GridBagConstraints(); // 聊天布局约束
 
+    private int currentGameId = -1;
+
     public GamePanel() {
         setLayout(new BorderLayout());
         setBackground(new Color(240, 240, 220));
@@ -229,26 +231,28 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
     private void handleRemoteMove(int fromRow, int fromCol, int toRow, int toCol) {
         SwingUtilities.invokeLater(() -> {
             ChessPiece piece = findPieceAt(fromRow, fromCol);
-            if (piece != null && piece.moveLogic(toRow, toCol, pieces)) {
-                // 移除目标位置棋子
+            if (piece != null) {
                 ChessPiece targetPiece = findPieceAt(toRow, toCol);
                 if (targetPiece != null) {
                     pieces.remove(targetPiece);
                 }
+                
                 piece.setPosition(toRow, toCol);
+                
+                String pName = piece.getType().toString();
+                if (this.currentGameId != -1) {
+                    DatabaseManager.saveMove(this.currentGameId, piece.getSide().toString(), pName, fromRow, fromCol, toRow, toCol);
+                }
+
                 nowSide = (nowSide == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
-                isMyTurn = true;
+                isMyTurn = true; 
                 repaint();
                 
-                // 检查远程移动是否导致胜利
                 ChessPiece.Side winner = checkWinner();
-                if (winner != null) {
-                    handleGameOver(winner);
-                }
+                if (winner != null) handleGameOver(winner);
             }
         });
     }
-
     private void handleRemoteWin(ChessPiece.Side winner) {
         SwingUtilities.invokeLater(() -> {
             handleGameOver(winner);
@@ -319,7 +323,7 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         ChessPiece clickedPiece = findPieceAt(row, col);
         
         if (selectedPiece == null) {
-            // 选中当前回合的棋子
+            
             if (clickedPiece != null && clickedPiece.getSide() == nowSide) {
                 selectedPiece = clickedPiece;
             }
@@ -341,6 +345,10 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
                 
                 // 执行移动
                 selectedPiece.setPosition(row, col);
+                String pName = selectedPiece.getType().toString();
+
+                DatabaseManager.saveMove(this.currentGameId,selectedPiece.getSide().toString(),pName,fromRow, fromCol, row, col);
+
                 selectedPiece = null;
                 nowSide = (nowSide == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
                 ChessPiece.Side winner = checkWinner();
@@ -353,6 +361,7 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
                 }
                 
                 if (isNetworkGame) {
+                    isMyTurn = false;
                     handleLocalMove(fromRow, fromCol, row, col);
                 }
             } else {
@@ -523,7 +532,9 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
             JOptionPane.showMessageDialog(this, 
                 "游戏开始！你是" + (localSide == ChessPiece.Side.RED ? "红方" : "黑方"));
             isGameStarted = true; 
-            isMyTurn = true;
+            isMyTurn = (localSide == ChessPiece.Side.RED);
+
+            this.currentGameId = DatabaseManager.createNewGame("Player_Red", "Player_Black");
         });
     }
 

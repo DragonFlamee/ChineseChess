@@ -47,7 +47,9 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "连接服务器失败：" + e.getMessage());
             isNetworkGame = false;
-            isMyTurn = true; // 单机模式直接可以走棋
+            isMyTurn = true; 
+
+            this.currentGameId = DatabaseManager.createNewGame("Local_Player", "Local_Friend");
         }
     }
 
@@ -240,9 +242,6 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
                 piece.setPosition(toRow, toCol);
                 
                 String pName = piece.getType().toString();
-                if (this.currentGameId != -1) {
-                    DatabaseManager.saveMove(this.currentGameId, piece.getSide().toString(), pName, fromRow, fromCol, toRow, toCol);
-                }
 
                 nowSide = (nowSide == ChessPiece.Side.RED) ? ChessPiece.Side.BLACK : ChessPiece.Side.RED;
                 isMyTurn = true; 
@@ -534,12 +533,28 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
             isGameStarted = true; 
             isMyTurn = (localSide == ChessPiece.Side.RED);
 
-            this.currentGameId = DatabaseManager.createNewGame("Player_Red", "Player_Black");
+            if (localSide == ChessPiece.Side.RED) {
+                this.currentGameId = DatabaseManager.createNewGame("Player_Red", "Player_Black");
+                if (client != null) {
+                    client.sendChatMessage("SYSTEM_GAME_ID:" + this.currentGameId);
+                }
+            }
         });
     }
 
     @Override
     public void onChatMessage(String sender, String message) {
+
+        if (message.startsWith("SYSTEM_GAME_ID:")) {
+            try {
+                this.currentGameId = Integer.parseInt(message.split(":")[1]);
+                System.out.println("同步对局ID成功: " + this.currentGameId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
         SwingUtilities.invokeLater(() -> {
             JLabel otherBubble = createMessageBubble(message, false);
             JPanel messageRow = new JPanel(new FlowLayout(FlowLayout.LEFT));

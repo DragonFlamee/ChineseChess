@@ -168,6 +168,37 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
         // 绑定发送事件
         sendButton.addActionListener(e -> sendChatMessage());
         chatInput.addActionListener(e -> sendChatMessage());
+
+        JButton voiceButton = new JButton("语音");
+        voiceButton.setBackground(new Color(0x576B95));
+        voiceButton.setForeground(Color.WHITE);
+
+        voiceButton.addActionListener(e -> {
+            // 开启独立线程录音，避免阻塞 UI
+            new Thread(() -> {
+                try {
+                    voiceButton.setText("正在录音...");
+                    voiceButton.setEnabled(false);
+                    
+                    // 录制 3 秒语音
+                    byte[] audio = AudioUtils.recordAudio(3000);
+                    
+                    if (client != null) {
+                        client.sendVoice(audio);
+                        onChatMessage("我", "[语音消息]");
+                    }
+                    
+                    voiceButton.setText("语音");
+                    voiceButton.setEnabled(true);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this, "录音失败，请检查麦克风。");
+                }
+            }).start();
+        });
+
+        // 将按钮加入 inputPanel
+        inputPanel.add(voiceButton, BorderLayout.WEST);
     }
     private JLabel createMessageBubble(String text, boolean isSelf) {
         JLabel bubbleLabel = new JLabel() {
@@ -499,6 +530,18 @@ public class GamePanel extends JPanel implements ChessClient.OnMessageReceived {
             if (parts.length == 3) {
                 onChatMessage(parts[1], parts[2]);
             }
+            return;
+        }
+
+        if (message.startsWith("VOICE:")) {
+            String base64Data = message.substring(6);
+            byte[] audioData = java.util.Base64.getDecoder().decode(base64Data);
+            
+            // 1. 自动播放语音
+            AudioUtils.playAudio(audioData);
+            
+            // 2. UI 提示收到语音
+            onChatMessage("对方", "[语音消息 - 已自动播放]");
             return;
         }
         

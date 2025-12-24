@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.Base64;
 
 public class ChessClient {
     private Socket socket;
@@ -13,6 +14,11 @@ public class ChessClient {
         void onSideAssigned(ChessPiece.Side side);
         void onGameStart();
         void onChatMessage(String sender, String message);
+    }
+
+    public void sendVoice(byte[] audioData) {
+        String base64Audio = Base64.getEncoder().encodeToString(audioData);
+        out.println("VOICE:" + base64Audio);
     }
 
     public ChessClient(OnMessageReceived listener) {

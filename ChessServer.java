@@ -58,6 +58,9 @@ public class ChessServer {
                     
                     if (inputLine.startsWith("CHAT:")) {
                         out.println("CHAT:" + clientSides[clientIndex] + ":" + inputLine.substring(5));
+                    } else if (inputLine.startsWith("VOICE:")) {
+                        System.out.println("转发来自 " + clientSides[clientIndex] + " 的语音数据");
+                        out.println(inputLine); 
                     } else {
                         out.println(inputLine);
                     }

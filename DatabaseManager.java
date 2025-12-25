@@ -21,7 +21,6 @@ public class DatabaseManager {
             int affectedRows = pstmt.executeUpdate();
 
             if (affectedRows > 0) {
-                // 获取生成的 ID
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         int id = generatedKeys.getInt(1);

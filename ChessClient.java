@@ -6,7 +6,7 @@ public class ChessClient {
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
-    private final OnMessageReceived listener; // 消息回调接口
+    private final OnMessageReceived listener;
 
     // 回调接口：收到消息时通知UI
     public interface OnMessageReceived {
@@ -64,12 +64,11 @@ public class ChessClient {
     
     public void sendChatMessage(String message) {
         if (out != null && message != null) {
-            out.println("CHAT:" + message); // 按约定格式发送聊天消息
+            out.println("CHAT:" + message);
         }
     }
 
     public void setSideReceivedListener(Object object) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'setSideReceivedListener'");
     }
 }
